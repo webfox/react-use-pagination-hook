@@ -106,11 +106,11 @@ export const usePagination = ({
     reducer,
     buildState({
       itemCount,
-      itemsPerPage: itemsPerPage,
-      pagesBeforeMargin: pagesBeforeMargin,
-      pagesAfterMargin: pagesAfterMargin,
-      currentPageIndex: initialPageIndex,
-      previousPageIndex: initialPageIndex,
+      itemsPerPage: itemsPerPage as number,
+      pagesBeforeMargin: pagesBeforeMargin as number,
+      pagesAfterMargin: pagesAfterMargin as number,
+      currentPageIndex: initialPageIndex as number,
+      previousPageIndex: initialPageIndex as number,
     })
   );
 
