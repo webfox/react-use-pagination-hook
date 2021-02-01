@@ -101,17 +101,17 @@ export const usePagination = ({
   initialPageIndex = 0,
 }: PaginationInput): PaginationStateWithNavigation => {
 
-
   const [state, dispatch] = useReducer(
     reducer,
-    buildState({
+    {
       itemCount,
-      itemsPerPage: itemsPerPage as number,
-      pagesBeforeMargin: pagesBeforeMargin as number,
-      pagesAfterMargin: pagesAfterMargin as number,
-      currentPageIndex: initialPageIndex as number,
-      previousPageIndex: initialPageIndex as number,
-    })
+      itemsPerPage,
+      pagesBeforeMargin,
+      pagesAfterMargin,
+      currentPageIndex: initialPageIndex,
+      previousPageIndex: initialPageIndex,
+    },
+    buildState
   );
 
   console.log(dispatch);
