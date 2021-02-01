@@ -90,40 +90,22 @@ interface UsePaginationInput {
   pagesAfterMargin?: number;
 }
 
-interface BuildStateInput {
-  itemCount: number;
-  itemsPerPage: number;
-  pagesBeforeMargin: number;
-  pagesAfterMargin: number;
-  currentPageIndex: number;
-  oldPageIndex?: number;
-}
-
 type Action =
   | { type: 'GOTO_PAGE'; page: number }
   | { type: 'SET_ITEMS_PER_PAGE'; itemsPerPage: number; reset?: boolean }
   | { type: 'SET_TOTAL_ITEMS'; itemCount: number; reset?: boolean };
 
-const buildState = ({
-  itemCount,
-  itemsPerPage,
-  pagesBeforeMargin,
-  pagesAfterMargin,
-  currentPageIndex,
-  oldPageIndex,
-}: BuildStateInput): State => {
+const calculateComputedStateProperties = (state: State): State => {
+  const totalPages = Math.ceil(state.itemCount / state.itemsPerPage);
+  const clampedCurrentPageIndex = Math.floor(Math.max(0, Math.min(state.currentPageIndex, totalPages - 1)));
+
   return {
-    itemCount,
-    pageCount: 5,
-    itemsPerPage,
-    pagesBeforeMargin,
-    pagesAfterMargin,
-    currentPageIndex,
-    currentPageNumber: currentPageIndex + 1,
-    oldPageIndex: oldPageIndex,
-    oldPageNumber: oldPageIndex ? oldPageIndex + 1 : undefined,
-    itemStart: 0,
-    itemEnd: 200,
+    ...state,
+    currentPageIndex: clampedCurrentPageIndex,
+    currentPageNumber: clampedCurrentPageIndex + 1,
+    oldPageNumber: state.oldPageIndex ? state.oldPageIndex + 1 : undefined,
+    itemStart: clampedCurrentPageIndex * state.itemsPerPage,
+    itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount),
     beforeStartMarginPages: [{ index: 0, number: 1 }],
     afterEndMarginPages: [{ index: 0, number: 1 }],
     beforeCurrentPagePages: [{ index: 0, number: 1 }],
@@ -135,25 +117,29 @@ const buildState = ({
   };
 };
 
-const recalculateStateFields = (state: State): State => {
-  return {
-    ...state,
-  };
-};
-
 const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case 'GOTO_PAGE':
       if (state.currentPageIndex === action.page) return state;
-      return recalculateStateFields({ ...state, currentPageIndex: action.page });
+      return calculateComputedStateProperties({
+        ...state,
+        currentPageIndex: action.page,
+        oldPageIndex: state.currentPageIndex,
+      });
 
     case 'SET_ITEMS_PER_PAGE':
       if (state.itemsPerPage === action.itemsPerPage) return state;
-      return recalculateStateFields({ ...state, itemsPerPage: action.itemsPerPage });
+      return calculateComputedStateProperties({
+        ...state,
+        itemsPerPage: action.itemsPerPage,
+      });
 
     case 'SET_TOTAL_ITEMS':
       if (state.itemCount === action.itemCount) return state;
-      return recalculateStateFields({ ...state, itemCount: action.itemCount });
+      return calculateComputedStateProperties({
+        ...state,
+        itemCount: action.itemCount,
+      });
   }
 };
 
@@ -164,16 +150,31 @@ export const usePagination = ({
   pagesBeforeMargin = 0,
   pagesAfterMargin = 0,
 }: UsePaginationInput): StateWithNavigation => {
-  const [{ beforeStartMarginPages, afterEndMarginPages, beforeCurrentPagePages, afterCurrentPagePages, ...state }, dispatch] = useReducer(
+  const [state, dispatch] = useReducer(
     reducer,
-    buildState({
+    // Fudge the properties calculateComputedStateProperties will fill in for us to give a pseudo state
+    calculateComputedStateProperties({
       itemCount,
-      currentPageIndex: initialPageIndex,
+      pageCount: -1,
       itemsPerPage,
       pagesBeforeMargin,
       pagesAfterMargin,
+      currentPageIndex: initialPageIndex,
+      currentPageNumber: -1,
+      itemStart: -1,
+      itemEnd: -1,
+      beforeStartMarginPages: [],
+      afterEndMarginPages: [],
+      beforeCurrentPagePages: [],
+      afterCurrentPagePages: [],
+      hasMorePastPages: false,
+      hasMoreFuturePages: false,
+      hasPastPage: false,
+      hasFuturePage: false,
     }),
   );
+
+  const { beforeStartMarginPages, afterEndMarginPages, beforeCurrentPagePages, afterCurrentPagePages } = state;
 
   console.log(state);
   dispatch({ type: 'GOTO_PAGE', page: 5 });
