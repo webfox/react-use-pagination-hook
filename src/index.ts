@@ -1,8 +1,15 @@
 import { useReducer } from 'react';
-import { buildState, reducer } from './reducer';
-import PropTypes from 'prop-types';
 
-export interface PaginationState {
+interface Page {
+  index: number;
+  number: number;
+}
+
+interface PageWithNavigation extends Page {
+  gotoPage: () => void;
+}
+
+interface State {
   /** The total number of items to create pages from */
   itemCount: number;
   /** The total number of pages the items have been split into */
@@ -43,7 +50,7 @@ export interface PaginationState {
   hasFuturePage: boolean;
 }
 
-export interface PaginationStateWithNavigation extends PaginationState {
+interface StateWithNavigation extends State {
   /** The list of pages to display before the first page margin */
   beforeStartMarginPages: Array<PageWithNavigation>;
   /** The list of pages to display after the last page margin */
@@ -57,78 +64,154 @@ export interface PaginationStateWithNavigation extends PaginationState {
   /** Navigate forward one page */
   gotoFuture: () => void;
   /** Navigate to a specific page by index */
-  gotoPageIndex: () => void;
+  gotoPageIndex: (index: number) => void;
   /** Navigate to a specific page by number */
-  gotoPageNumber: () => void;
+  gotoPageNumber: (number: number) => void;
   /** Navigate to the first page */
   gotoFirst: () => void;
   /** Navigate to the last page */
   gotoLast: () => void;
   /** Update the item count */
-  setItemCount: (count: number) => void;
+  setItemCount: (count: number, reset: boolean) => void;
   /** Update the items per page */
-  setItemsPerPage: (itemsPerPage: number) => void;
+  setItemsPerPage: (itemsPerPage: number, reset: boolean) => void;
 }
 
-export interface Page {
-  index: number;
-  number: number;
-}
-
-export interface PageWithNavigation extends Page {
-  /** Navigate to this page */
-  gotoPage: () => void;
-}
-
-export interface PaginationInput {
+interface UsePaginationInput {
   /** The total number of items to create pages from */
   itemCount: number;
+  /** The current page index */
+  initialPageIndex?: number;
   /** The maximum number of items each page should contain */
   itemsPerPage?: number;
   /** The number of pages fixed at the start and end (e.g. if 10 pages 2 would display [<][1][2]...[65]...[9][10][>] */
   pagesBeforeMargin?: number;
   /** The ideal number of pages to display on each side of the current page */
   pagesAfterMargin?: number;
-  /** The page index to initialize as being active in the pagination component */
-  initialPageIndex?: number;
 }
+
+interface BuildStateInput {
+  itemCount: number;
+  itemsPerPage: number;
+  pagesBeforeMargin: number;
+  pagesAfterMargin: number;
+  currentPageIndex: number;
+  oldPageIndex?: number;
+}
+
+type Action =
+  | { type: 'GOTO_PAGE'; page: number }
+  | { type: 'SET_ITEMS_PER_PAGE'; itemsPerPage: number; reset?: boolean }
+  | { type: 'SET_TOTAL_ITEMS'; itemCount: number; reset?: boolean };
+
+const buildState = ({
+  itemCount,
+  itemsPerPage,
+  pagesBeforeMargin,
+  pagesAfterMargin,
+  currentPageIndex,
+  oldPageIndex,
+}: BuildStateInput): State => {
+  return {
+    itemCount,
+    pageCount: 5,
+    itemsPerPage,
+    pagesBeforeMargin,
+    pagesAfterMargin,
+    currentPageIndex,
+    currentPageNumber: currentPageIndex + 1,
+    oldPageIndex: oldPageIndex,
+    oldPageNumber: oldPageIndex ? oldPageIndex + 1 : undefined,
+    itemStart: 0,
+    itemEnd: 200,
+    beforeStartMarginPages: [{ index: 0, number: 1 }],
+    afterEndMarginPages: [{ index: 0, number: 1 }],
+    beforeCurrentPagePages: [{ index: 0, number: 1 }],
+    afterCurrentPagePages: [{ index: 0, number: 1 }],
+    hasMorePastPages: false,
+    hasMoreFuturePages: false,
+    hasPastPage: false,
+    hasFuturePage: false,
+  };
+};
+
+const recalculateStateFields = (state: State): State => {
+  return {
+    ...state,
+  };
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case 'GOTO_PAGE':
+      if (state.currentPageIndex === action.page) return state;
+      return recalculateStateFields({ ...state, currentPageIndex: action.page });
+
+    case 'SET_ITEMS_PER_PAGE':
+      if (state.itemsPerPage === action.itemsPerPage) return state;
+      return recalculateStateFields({ ...state, itemsPerPage: action.itemsPerPage });
+
+    case 'SET_TOTAL_ITEMS':
+      if (state.itemCount === action.itemCount) return state;
+      return recalculateStateFields({ ...state, itemCount: action.itemCount });
+  }
+};
 
 export const usePagination = ({
   itemCount,
-  itemsPerPage = 10,
-  pagesBeforeMargin = 0,
-  pagesAfterMargin = 5,
   initialPageIndex = 0,
-}: PaginationInput): PaginationStateWithNavigation => {
-
-  const [state, dispatch] = useReducer(
+  itemsPerPage = 5,
+  pagesBeforeMargin = 0,
+  pagesAfterMargin = 0,
+}: UsePaginationInput): StateWithNavigation => {
+  const [{ beforeStartMarginPages, afterEndMarginPages, beforeCurrentPagePages, afterCurrentPagePages, ...state }, dispatch] = useReducer(
     reducer,
-    {
+    buildState({
       itemCount,
+      currentPageIndex: initialPageIndex,
       itemsPerPage,
       pagesBeforeMargin,
       pagesAfterMargin,
-      currentPageIndex: initialPageIndex,
-      previousPageIndex: initialPageIndex,
-    },
-    buildState
+    }),
   );
 
-  console.log(dispatch);
-  return state as PaginationStateWithNavigation;
-};
+  console.log(state);
+  dispatch({ type: 'GOTO_PAGE', page: 5 });
 
-usePagination.PropTypes = {
-  itemCount: PropTypes.number.isRequired,
-  itemsPerPage: PropTypes.number,
-  pagesBeforeMargin: PropTypes.number,
-  pagesAfterMargin: PropTypes.number,
-  initialPageIndex: PropTypes.number,
-};
+  const addGotoPage = (page: Page): PageWithNavigation => ({
+    ...page,
+    gotoPage: () => dispatch({ type: 'GOTO_PAGE', page: page.index }),
+  });
 
-usePagination.defaultProps = {
-  itemsPerPage: 10,
-  pagesBeforeMargin: 0,
-  pagesAfterMargin: 5,
-  initialPageIndex: 0,
+  return {
+    ...state,
+    beforeStartMarginPages: beforeStartMarginPages.map(addGotoPage),
+    afterEndMarginPages: afterEndMarginPages.map(addGotoPage),
+    beforeCurrentPagePages: beforeCurrentPagePages.map(addGotoPage),
+    afterCurrentPagePages: afterCurrentPagePages.map(addGotoPage),
+    gotoPast: () => {
+      dispatch({ type: 'GOTO_PAGE', page: state.currentPageIndex - 1 });
+    },
+    gotoFuture: () => {
+      dispatch({ type: 'GOTO_PAGE', page: state.currentPageIndex + 1 });
+    },
+    gotoPageIndex: (index) => {
+      dispatch({ type: 'GOTO_PAGE', page: index });
+    },
+    gotoPageNumber: (number) => {
+      dispatch({ type: 'GOTO_PAGE', page: number - 1 });
+    },
+    gotoFirst: () => {
+      dispatch({ type: 'GOTO_PAGE', page: 0 });
+    },
+    gotoLast: () => {
+      dispatch({ type: 'GOTO_PAGE', page: state.pageCount - 1 });
+    },
+    setItemCount: (count: number, reset = true) => {
+      dispatch({ type: 'SET_TOTAL_ITEMS', itemCount: count, reset });
+    },
+    setItemsPerPage: (itemsPerPage: number, reset = true) => {
+      dispatch({ type: 'SET_ITEMS_PER_PAGE', itemsPerPage, reset });
+    },
+  };
 };
