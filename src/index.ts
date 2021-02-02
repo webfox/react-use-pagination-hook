@@ -104,7 +104,7 @@ const calculateComputedStateProperties = (state: State): State => {
     pageCount: totalPages,
     currentPageIndex: clampedCurrentPageIndex,
     currentPageNumber: clampedCurrentPageIndex + 1,
-    oldPageNumber: state.oldPageIndex ? state.oldPageIndex + 1 : undefined,
+    oldPageNumber: state.oldPageIndex === undefined ? undefined : state.oldPageIndex + 1,
     itemStart: clampedCurrentPageIndex * state.itemsPerPage,
     itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount) - 1,
     beforeStartMarginPages: [{ index: 0, number: 1 }],
@@ -125,7 +125,7 @@ const reducer = (state: State, action: Action): State => {
       return calculateComputedStateProperties({
         ...state,
         currentPageIndex: action.page,
-        oldPageIndex: state.currentPageIndex,
+        oldPageIndex: state.currentPageIndex >= 0 ? state.currentPageIndex : undefined,
       });
 
     case 'SET_ITEMS_PER_PAGE':
