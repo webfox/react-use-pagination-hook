@@ -5,7 +5,7 @@ interface Page {
   number: number;
 }
 
-interface PageWithNavigation extends Page {
+export interface PageWithNavigation extends Page {
   gotoPage: () => void;
 }
 
@@ -50,7 +50,7 @@ interface State {
   hasFuturePage: boolean;
 }
 
-interface StateWithNavigation extends State {
+export interface StateWithNavigation extends State {
   /** The list of pages to display before the first page margin */
   beforeStartMarginPages: Array<PageWithNavigation>;
   /** The list of pages to display after the last page margin */
@@ -77,7 +77,7 @@ interface StateWithNavigation extends State {
   setItemsPerPage: (itemsPerPage: number, reset: boolean) => void;
 }
 
-interface UsePaginationInput {
+export interface UsePaginationInput {
   /** The total number of items to create pages from */
   itemCount: number;
   /** The current page index */
@@ -101,19 +101,20 @@ const calculateComputedStateProperties = (state: State): State => {
 
   return {
     ...state,
+    pageCount: totalPages,
     currentPageIndex: clampedCurrentPageIndex,
     currentPageNumber: clampedCurrentPageIndex + 1,
     oldPageNumber: state.oldPageIndex ? state.oldPageIndex + 1 : undefined,
     itemStart: clampedCurrentPageIndex * state.itemsPerPage,
-    itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount),
+    itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount) - 1,
     beforeStartMarginPages: [{ index: 0, number: 1 }],
     afterEndMarginPages: [{ index: 0, number: 1 }],
     beforeCurrentPagePages: [{ index: 0, number: 1 }],
     afterCurrentPagePages: [{ index: 0, number: 1 }],
     hasMorePastPages: false,
     hasMoreFuturePages: false,
-    hasPastPage: false,
-    hasFuturePage: false,
+    hasPastPage: clampedCurrentPageIndex > 0,
+    hasFuturePage: clampedCurrentPageIndex < totalPages - 1,
   };
 };
 
@@ -144,12 +145,12 @@ const reducer = (state: State, action: Action): State => {
 };
 
 export const usePagination = ({
-  itemCount,
-  initialPageIndex = 0,
-  itemsPerPage = 5,
-  pagesBeforeMargin = 0,
-  pagesAfterMargin = 0,
-}: UsePaginationInput): StateWithNavigation => {
+                                itemCount,
+                                initialPageIndex = 0,
+                                itemsPerPage = 5,
+                                pagesBeforeMargin = 0,
+                                pagesAfterMargin = 0,
+                              }: UsePaginationInput): StateWithNavigation => {
   const [state, dispatch] = useReducer(
     reducer,
     // Fudge the properties calculateComputedStateProperties will fill in for us to give a pseudo state
@@ -175,9 +176,6 @@ export const usePagination = ({
   );
 
   const { beforeStartMarginPages, afterEndMarginPages, beforeCurrentPagePages, afterCurrentPagePages } = state;
-
-  console.log(state);
-  dispatch({ type: 'GOTO_PAGE', page: 5 });
 
   const addGotoPage = (page: Page): PageWithNavigation => ({
     ...page,

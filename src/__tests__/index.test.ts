@@ -1,50 +1,79 @@
-import { renderHook, act } from '@testing-library/react-hooks';
+import { act, renderHook } from '@testing-library/react-hooks';
 import { usePagination } from '../index';
+
+const initialState = {
+  itemCount: 2475,
+  itemsPerPage: 50,
+  initialPageIndex: 0,
+  pagesAfterMargin: 4,
+  pagesBeforeMargin: 2,
+};
+
+const initialStateMiddlePageIndex = Math.ceil(initialState.itemCount / initialState.itemsPerPage / 2);
+
+const pageCount = (itemCount: number, itemsPerPage: number) => Math.ceil(itemCount / itemsPerPage);
 
 describe('usePagination tests', () => {
   it('should be defined', () => {
     expect(usePagination).toBeDefined();
   });
 
-  it('renders the hook correctly and checks types', () => {
-    const { result } = renderHook(() => usePagination());
-    expect(result.current.count).toBe(0);
-    expect(typeof result.current.count).toBe('number');
-    expect(typeof result.current.increment).toBe('function');
+  it('can calculate total pages', () => {
+    const { result } = renderHook(() => usePagination(initialState));
+
+    expect(result.current.pageCount).toEqual(pageCount(initialState.itemCount, initialState.itemsPerPage));
   });
 
-  it('should increment counter', () => {
-    const { result } = renderHook(() => usePagination());
-    act(() => {
-      result.current.increment();
-    });
-    expect(result.current.count).toBe(1);
+  it('can use an initial page index', () => {
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialStateMiddlePageIndex }));
+
+    expect(result.current.currentPageIndex).toEqual(initialStateMiddlePageIndex);
+    expect(result.current.currentPageNumber).toEqual(initialStateMiddlePageIndex + 1);
   });
 
-  it('should increment counter from custom initial value', () => {
-    const { result } = renderHook(() => usePagination(10));
-    act(() => {
-      result.current.increment();
-    });
-    expect(result.current.count).toBe(11);
+  it('can go to the first and last pages', () => {
+    const {itemsPerPage, itemCount} = initialState;
+
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialStateMiddlePageIndex }));
+
+    act(() => result.current.gotoFirst());
+    expect(result.current.currentPageIndex).toEqual(0);
+    expect(result.current.currentPageNumber).toEqual(1);
+
+    act(() => result.current.gotoLast());
+    expect(result.current.currentPageIndex).toEqual(pageCount(itemCount, itemsPerPage) - 1);
+    expect(result.current.currentPageNumber).toEqual(pageCount(itemCount, itemsPerPage));
   });
 
-  it('should decrement counter from custom initial value', () => {
-    const { result } = renderHook(() => usePagination(20));
-    act(() => {
-      result.current.decrement();
+  it('can calculate item ranges', () => {
+    const {itemsPerPage, itemCount} = initialState;
+    const { result } = renderHook(() => usePagination({ ...initialState, itemsPerPage, itemCount }));
+
+    // Random Pages
+    [0, 1, 10, 17, 30].forEach(pageIndex => {
+      act(() => result.current.gotoPageIndex(pageIndex));
+      expect(result.current.itemStart).toEqual(itemsPerPage * pageIndex);
+      expect(result.current.itemEnd).toEqual((itemsPerPage * pageIndex) + itemsPerPage - 1);
     });
-    expect(result.current.count).toBe(19);
+
+    // Partial Page
+    act(() => result.current.gotoLast());
+    expect(result.current.itemStart).toEqual(itemCount - (itemCount % itemsPerPage));
+    expect(result.current.itemEnd).toEqual(itemCount - 1);
   });
 
-  it('should reset counter to updated initial value', () => {
-    let initialValue = 0;
-    const { result, rerender } = renderHook(() => usePagination(initialValue));
-    initialValue = 10;
-    rerender();
-    act(() => {
-      result.current.reset();
-    });
-    expect(result.current.count).toBe(10);
+  it('knows if there are future and past pages', () => {
+    const { result } = renderHook(() => usePagination(initialState));
+
+    expect(result.current.hasPastPage).toBe(false);
+    expect(result.current.hasFuturePage).toBe(true);
+
+    act(() => result.current.gotoPageIndex(5));
+    expect(result.current.hasPastPage).toBe(true);
+    expect(result.current.hasFuturePage).toBe(true);
+
+    act(() => result.current.gotoLast());
+    expect(result.current.hasPastPage).toBe(true);
+    expect(result.current.hasFuturePage).toBe(false);
   });
 });
