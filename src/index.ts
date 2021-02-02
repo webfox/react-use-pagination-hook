@@ -72,9 +72,9 @@ export interface StateWithNavigation extends State {
   /** Navigate to the last page */
   gotoLast: () => void;
   /** Update the item count */
-  setItemCount: (count: number, reset: boolean) => void;
+  setItemCount: (count: number, reset?: boolean) => void;
   /** Update the items per page */
-  setItemsPerPage: (itemsPerPage: number, reset: boolean) => void;
+  setItemsPerPage: (itemsPerPage: number, reset?: boolean) => void;
 }
 
 export interface UsePaginationInput {
@@ -99,6 +99,14 @@ const calculateComputedStateProperties = (state: State): State => {
   const totalPages = Math.ceil(state.itemCount / state.itemsPerPage);
   const clampedCurrentPageIndex = Math.floor(Math.max(0, Math.min(state.currentPageIndex, totalPages - 1)));
 
+  const beforeStartMarginPages: Array<Page> = [];
+  for(let i = 0; i < Math.min(state.pagesBeforeMargin, clampedCurrentPageIndex); i++) {
+    beforeStartMarginPages.push({
+      index: i,
+      number: i + 1
+    });
+  }
+
   return {
     ...state,
     pageCount: totalPages,
@@ -107,7 +115,7 @@ const calculateComputedStateProperties = (state: State): State => {
     oldPageNumber: state.oldPageIndex === undefined ? undefined : state.oldPageIndex + 1,
     itemStart: clampedCurrentPageIndex * state.itemsPerPage,
     itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount) - 1,
-    beforeStartMarginPages: [{ index: 0, number: 1 }],
+    beforeStartMarginPages: beforeStartMarginPages,
     afterEndMarginPages: [{ index: 0, number: 1 }],
     beforeCurrentPagePages: [{ index: 0, number: 1 }],
     afterCurrentPagePages: [{ index: 0, number: 1 }],
@@ -132,6 +140,7 @@ const reducer = (state: State, action: Action): State => {
       if (state.itemsPerPage === action.itemsPerPage) return state;
       return calculateComputedStateProperties({
         ...state,
+        currentPageIndex: action.reset ? 0 : state.currentPageIndex,
         itemsPerPage: action.itemsPerPage,
       });
 
@@ -139,18 +148,19 @@ const reducer = (state: State, action: Action): State => {
       if (state.itemCount === action.itemCount) return state;
       return calculateComputedStateProperties({
         ...state,
+        currentPageIndex: action.reset ? 0 : state.currentPageIndex,
         itemCount: action.itemCount,
       });
   }
 };
 
 export const usePagination = ({
-                                itemCount,
-                                initialPageIndex = 0,
-                                itemsPerPage = 5,
-                                pagesBeforeMargin = 0,
-                                pagesAfterMargin = 0,
-                              }: UsePaginationInput): StateWithNavigation => {
+  itemCount,
+  initialPageIndex = 0,
+  itemsPerPage = 5,
+  pagesBeforeMargin = 0,
+  pagesAfterMargin = 0,
+}: UsePaginationInput): StateWithNavigation => {
   const [state, dispatch] = useReducer(
     reducer,
     // Fudge the properties calculateComputedStateProperties will fill in for us to give a pseudo state
