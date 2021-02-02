@@ -6,10 +6,12 @@ interface Page {
 }
 
 export interface PageWithNavigation extends Page {
-  gotoPage: () => void;
+  gotoPage(): void;
 }
 
-interface State {
+type StateCallback = ((state: State) => number);
+
+export interface State {
   /** The total number of items to create pages from */
   itemCount: number;
   /** The total number of pages the items have been split into */
@@ -60,21 +62,31 @@ export interface StateWithNavigation extends State {
   /** The list of pages to display after the current page */
   afterCurrentPagePages: Array<PageWithNavigation>;
   /** Navigate back one page */
-  gotoPast: () => void;
+  gotoPast(): void;
   /** Navigate forward one page */
-  gotoFuture: () => void;
+  gotoFuture(): void;
   /** Navigate to a specific page by index */
-  gotoPageIndex: (index: number) => void;
+  gotoPageIndex(index: number): void;
+  gotoPageIndex(callback: StateCallback): void;
   /** Navigate to a specific page by number */
-  gotoPageNumber: (number: number) => void;
+  gotoPageNumber(number: number): void;
+  gotoPageNumber(callback: StateCallback): void;
   /** Navigate to the first page */
-  gotoFirst: () => void;
+  gotoFirst(): void;
   /** Navigate to the last page */
-  gotoLast: () => void;
+  gotoLast(): void;
   /** Update the item count */
-  setItemCount: (count: number, reset?: boolean) => void;
+  setItemCount(count: number, reset?: boolean): void;
+  setItemCount(callback: StateCallback, reset?: boolean): void;
   /** Update the items per page */
-  setItemsPerPage: (itemsPerPage: number, reset?: boolean) => void;
+  setItemsPerPage(itemsPerPage: number, reset?: boolean): void;
+  setItemsPerPage(callback: StateCallback, reset?: boolean): void;
+  /** Update the number of pages before the margin */
+  setPagesBeforeMargin(numberOfPages: number, reset?: boolean): void;
+  setPagesBeforeMargin(callback: StateCallback, reset?: boolean): void;
+  /** Update the number of pages after the margin */
+  setPagesAfterMargin(numberOfPages: number, reset?: boolean): void;
+  setPagesAfterMargin(callback: StateCallback, reset?: boolean): void;
 }
 
 export interface UsePaginationInput {
@@ -92,18 +104,31 @@ export interface UsePaginationInput {
 
 type Action =
   | { type: 'GOTO_PAGE'; page: number }
+  | { type: 'SET_PAGES_BEFORE_MARGIN'; pages: number }
+  | { type: 'SET_PAGES_AFTER_MARGIN'; pages: number }
   | { type: 'SET_ITEMS_PER_PAGE'; itemsPerPage: number; reset?: boolean }
   | { type: 'SET_TOTAL_ITEMS'; itemCount: number; reset?: boolean };
 
 const calculateComputedStateProperties = (state: State): State => {
   const totalPages = Math.ceil(state.itemCount / state.itemsPerPage);
+  const maxPageIndex = totalPages - 1;
   const clampedCurrentPageIndex = Math.floor(Math.max(0, Math.min(state.currentPageIndex, totalPages - 1)));
 
   const beforeStartMarginPages: Array<Page> = [];
-  for(let i = 0; i < Math.min(state.pagesBeforeMargin, clampedCurrentPageIndex); i++) {
+  const beforeStartMarginPagesToAdd = Math.min(state.pagesBeforeMargin, clampedCurrentPageIndex);
+  for (let i = 0; i < beforeStartMarginPagesToAdd; i++) {
     beforeStartMarginPages.push({
       index: i,
-      number: i + 1
+      number: i + 1,
+    });
+  }
+
+  const afterEndMarginPages: Array<Page> = [];
+  const afterEndMarginPagesToAdd = Math.min(state.pagesBeforeMargin, maxPageIndex - clampedCurrentPageIndex);
+  for (let i = maxPageIndex - afterEndMarginPagesToAdd + 1; i <= maxPageIndex; i++) {
+    afterEndMarginPages.push({
+      index: i,
+      number: i + 1,
     });
   }
 
@@ -116,7 +141,7 @@ const calculateComputedStateProperties = (state: State): State => {
     itemStart: clampedCurrentPageIndex * state.itemsPerPage,
     itemEnd: Math.min(clampedCurrentPageIndex * state.itemsPerPage + state.itemsPerPage, state.itemCount) - 1,
     beforeStartMarginPages: beforeStartMarginPages,
-    afterEndMarginPages: [{ index: 0, number: 1 }],
+    afterEndMarginPages: afterEndMarginPages,
     beforeCurrentPagePages: [{ index: 0, number: 1 }],
     afterCurrentPagePages: [{ index: 0, number: 1 }],
     hasMorePastPages: false,
@@ -134,6 +159,20 @@ const reducer = (state: State, action: Action): State => {
         ...state,
         currentPageIndex: action.page,
         oldPageIndex: state.currentPageIndex >= 0 ? state.currentPageIndex : undefined,
+      });
+
+    case 'SET_PAGES_BEFORE_MARGIN':
+      if (state.pagesBeforeMargin === action.pages) return state;
+      return calculateComputedStateProperties({
+        ...state,
+        pagesBeforeMargin: action.pages,
+      });
+
+    case 'SET_PAGES_AFTER_MARGIN':
+      if (state.pagesAfterMargin === action.pages) return state;
+      return calculateComputedStateProperties({
+        ...state,
+        pagesAfterMargin: action.pages,
       });
 
     case 'SET_ITEMS_PER_PAGE':
@@ -171,7 +210,7 @@ export const usePagination = ({
       pagesBeforeMargin,
       pagesAfterMargin,
       currentPageIndex: initialPageIndex,
-      currentPageNumber: -1,
+      currentPageNumber: initialPageIndex + 1,
       itemStart: -1,
       itemEnd: -1,
       beforeStartMarginPages: [],
@@ -192,35 +231,43 @@ export const usePagination = ({
     gotoPage: () => dispatch({ type: 'GOTO_PAGE', page: page.index }),
   });
 
+  const executeOrReturn = (value: number | StateCallback): number => (typeof value === 'function' ? value(state) : value);
+
   return {
     ...state,
     beforeStartMarginPages: beforeStartMarginPages.map(addGotoPage),
     afterEndMarginPages: afterEndMarginPages.map(addGotoPage),
     beforeCurrentPagePages: beforeCurrentPagePages.map(addGotoPage),
     afterCurrentPagePages: afterCurrentPagePages.map(addGotoPage),
-    gotoPast: () => {
+    gotoPast() {
       dispatch({ type: 'GOTO_PAGE', page: state.currentPageIndex - 1 });
     },
-    gotoFuture: () => {
+    gotoFuture() {
       dispatch({ type: 'GOTO_PAGE', page: state.currentPageIndex + 1 });
     },
-    gotoPageIndex: (index) => {
-      dispatch({ type: 'GOTO_PAGE', page: index });
+    gotoPageIndex(indexOrCallback: number | StateCallback) {
+      dispatch({ type: 'GOTO_PAGE', page: executeOrReturn(indexOrCallback)});
     },
-    gotoPageNumber: (number) => {
-      dispatch({ type: 'GOTO_PAGE', page: number - 1 });
+    gotoPageNumber(numberOrCallback: number | StateCallback) {
+      dispatch({ type: 'GOTO_PAGE', page: executeOrReturn(numberOrCallback) - 1 });
     },
-    gotoFirst: () => {
+    gotoFirst() {
       dispatch({ type: 'GOTO_PAGE', page: 0 });
     },
-    gotoLast: () => {
+    gotoLast() {
       dispatch({ type: 'GOTO_PAGE', page: state.pageCount - 1 });
     },
-    setItemCount: (count: number, reset = true) => {
-      dispatch({ type: 'SET_TOTAL_ITEMS', itemCount: count, reset });
+    setItemCount(countOrCallback: number | StateCallback, reset = true) {
+      dispatch({ type: 'SET_TOTAL_ITEMS', itemCount: executeOrReturn(countOrCallback), reset });
     },
-    setItemsPerPage: (itemsPerPage: number, reset = true) => {
-      dispatch({ type: 'SET_ITEMS_PER_PAGE', itemsPerPage, reset });
+    setItemsPerPage(itemsPerPageOrCallback: number | StateCallback, reset = true) {
+      dispatch({ type: 'SET_ITEMS_PER_PAGE', itemsPerPage: executeOrReturn(itemsPerPageOrCallback), reset });
+    },
+    setPagesBeforeMargin(numberOrCallback: number | StateCallback) {
+      dispatch({ type: 'SET_PAGES_BEFORE_MARGIN', pages: executeOrReturn(numberOrCallback) });
+    },
+    setPagesAfterMargin(numberOrCallback: number | StateCallback) {
+      dispatch({ type: 'SET_PAGES_AFTER_MARGIN', pages: executeOrReturn(numberOrCallback) });
     },
   };
 };

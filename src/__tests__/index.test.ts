@@ -21,14 +21,12 @@ const pageCount = (itemCount: number = initialState.itemCount, itemsPerPage: num
 describe('usePagination tests', () => {
   it('should be defined', () => {
     expect(usePagination).toBeDefined();
-
   });
 
   it('can calculate total pages', () => {
     const { result } = renderHook(() => usePagination(initialState));
 
     expect(result.current.pageCount).toEqual(pageCount());
-
   });
 
   it('can use an initial page index', () => {
@@ -38,7 +36,46 @@ describe('usePagination tests', () => {
       currentPageIndex: initialState50PageIndex,
       currentPageNumber: initialState50PageIndex + 1,
     });
+  });
 
+  it('can change pages by index', () => {
+    const { result } = renderHook(() => usePagination(initialState));
+
+    act(() => result.current.gotoPageIndex(3));
+    expect(result.current).toMatchObject({
+      currentPageIndex: 3,
+      currentPageNumber: 4,
+    });
+  });
+
+  it('can change pages by index with a callback', () => {
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
+
+    act(() => result.current.gotoPageIndex((state) => state.currentPageIndex + 2));
+    expect(result.current).toMatchObject({
+      currentPageIndex: initialState50PageIndex + 2,
+      currentPageNumber: initialState50PageIndex + 3,
+    });
+  });
+
+  it('can change pages by number', () => {
+    const { result } = renderHook(() => usePagination(initialState));
+
+    act(() => result.current.gotoPageNumber(3));
+    expect(result.current).toMatchObject({
+      currentPageIndex: 2,
+      currentPageNumber: 3,
+    });
+  });
+
+  it('can change pages by number with a callback', () => {
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
+
+    act(() => result.current.gotoPageNumber((state) => state.currentPageNumber + 2));
+    expect(result.current).toMatchObject({
+      currentPageIndex: initialState50PageIndex + 2,
+      currentPageNumber: initialState50PageIndex + 3,
+    });
   });
 
   it('can go to the first and last pages', () => {
@@ -57,7 +94,6 @@ describe('usePagination tests', () => {
       currentPageIndex: pageCount(itemCount, itemsPerPage) - 1,
       currentPageNumber: pageCount(itemCount, itemsPerPage),
     });
-
   });
 
   it('clamps page navigation', () => {
@@ -85,7 +121,6 @@ describe('usePagination tests', () => {
       currentPageIndex: 0,
       currentPageNumber: 1,
     });
-
   });
 
   it('can calculate item ranges', () => {
@@ -107,7 +142,6 @@ describe('usePagination tests', () => {
       itemStart: itemCount - (itemCount % itemsPerPage),
       itemEnd: itemCount - 1,
     });
-
   });
 
   it('knows if there are future and past pages', () => {
@@ -129,7 +163,6 @@ describe('usePagination tests', () => {
       hasPastPage: true,
       hasFuturePage: false,
     });
-
   });
 
   it('tracks old page positions', () => {
@@ -155,7 +188,6 @@ describe('usePagination tests', () => {
       oldPageIndex: initialState50PageIndex,
       oldPageNumber: initialState50PageIndex + 1,
     });
-
   });
 
   it('can update item count', () => {
@@ -177,7 +209,17 @@ describe('usePagination tests', () => {
       pageCount: pageCount(),
       currentPageIndex: initialState50PageIndex, // Ensure page is not reset with "reset = true"
     });
+  });
 
+  it('can update item count with a callback', () => {
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
+
+    const newItemCount = initialState.itemCount / 2;
+    act(() => result.current.setItemCount((state) => state.itemCount / 2));
+    expect(result.current).toMatchObject({
+      itemCount: newItemCount,
+      pageCount: pageCount(newItemCount),
+    });
   });
 
   it('can update items per page', () => {
@@ -199,11 +241,28 @@ describe('usePagination tests', () => {
       pageCount: pageCount(),
       currentPageIndex: initialState100PageIndex, // Ensure page is not reset with "reset = true"
     });
+  });
 
+  it('can update items per page with a callback', () => {
+    const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
+
+    const newItemsPerPage = initialState.itemsPerPage / 2;
+    act(() => result.current.setItemsPerPage((state) => state.itemsPerPage / 2));
+    expect(result.current).toMatchObject({
+      itemsPerPage: newItemsPerPage,
+      pageCount: pageCount(initialState.itemCount, newItemsPerPage),
+    });
   });
 
   it('can calculate before start margin pages', () => {
-    const { result } = renderHook(() => usePagination({ ...initialState, pagesBeforeMargin: 2 }));
+    const { result } = renderHook(() =>
+      usePagination({
+        ...initialState,
+        itemsPerPage: 5,
+        itemCount: 100,
+        pagesBeforeMargin: 2,
+      }),
+    );
 
     expect(result.current.beforeStartMarginPages).toEqual([]);
 
@@ -224,24 +283,75 @@ describe('usePagination tests', () => {
       expect.objectContaining({ index: 0, number: 1 }),
       expect.objectContaining({ index: 1, number: 2 }),
     ]);
-
   });
 
-  it('can can handle before margin pages being greater than actual pages', () => {
+  it('can calculate after end margin pages', () => {
+    const { result } = renderHook(() =>
+      usePagination({
+        ...initialState,
+        itemsPerPage: 5,
+        itemCount: 100,
+        pagesBeforeMargin: 2,
+      }),
+    );
+
+    expect(result.current.afterEndMarginPages.length).toEqual(2);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 18, number: 19 }),
+      expect.objectContaining({ index: 19, number: 20 }),
+    ]);
+
+    act(() => result.current.gotoPageIndex(5));
+    expect(result.current.afterEndMarginPages.length).toEqual(2);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 18, number: 19 }),
+      expect.objectContaining({ index: 19, number: 20 }),
+    ]);
+
+    act(() => result.current.gotoPageIndex(17));
+    expect(result.current.afterEndMarginPages.length).toEqual(2);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 18, number: 19 }),
+      expect.objectContaining({ index: 19, number: 20 }),
+    ]);
+
+    act(() => result.current.gotoPageIndex(18));
+    expect(result.current.afterEndMarginPages.length).toEqual(1);
+    expect(result.current.afterEndMarginPages).toEqual([expect.objectContaining({ index: 19, number: 20 })]);
+
+    act(() => result.current.gotoPageIndex(19));
+    expect(result.current.afterEndMarginPages.length).toEqual(0);
+    expect(result.current.afterEndMarginPages).toEqual([]);
+  });
+
+  it('can handle before margin pages being greater than actual pages', () => {
     const { result } = renderHook(() =>
       usePagination({
         ...initialState,
         itemsPerPage: 25,
-        itemCount: 75,
-        pagesBeforeMargin: 10,
+        itemCount: 125,
+        pagesBeforeMargin: 8,
       }),
     );
 
     expect(result.current.beforeStartMarginPages).toEqual([]);
+    expect(result.current.afterEndMarginPages.length).toEqual(4);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 1, number: 2 }),
+      expect.objectContaining({ index: 2, number: 3 }),
+      expect.objectContaining({ index: 3, number: 4 }),
+      expect.objectContaining({ index: 4, number: 5 }),
+    ]);
 
     act(() => result.current.gotoPageIndex(1));
     expect(result.current.beforeStartMarginPages.length).toEqual(1);
     expect(result.current.beforeStartMarginPages).toEqual([expect.objectContaining({ index: 0, number: 1 })]);
+    expect(result.current.afterEndMarginPages.length).toEqual(3);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 2, number: 3 }),
+      expect.objectContaining({ index: 3, number: 4 }),
+      expect.objectContaining({ index: 4, number: 5 }),
+    ]);
 
     act(() => result.current.gotoPageIndex(2));
     expect(result.current.beforeStartMarginPages.length).toEqual(2);
@@ -249,6 +359,35 @@ describe('usePagination tests', () => {
       expect.objectContaining({ index: 0, number: 1 }),
       expect.objectContaining({ index: 1, number: 2 }),
     ]);
+    expect(result.current.afterEndMarginPages.length).toEqual(2);
+    expect(result.current.afterEndMarginPages).toEqual([
+      expect.objectContaining({ index: 3, number: 4 }),
+      expect.objectContaining({ index: 4, number: 5 }),
+    ]);
 
+    act(() => result.current.gotoPageIndex(3));
+    expect(result.current.beforeStartMarginPages.length).toEqual(3);
+    expect(result.current.beforeStartMarginPages).toEqual([
+      expect.objectContaining({ index: 0, number: 1 }),
+      expect.objectContaining({ index: 1, number: 2 }),
+      expect.objectContaining({ index: 2, number: 3 }),
+    ]);
+    expect(result.current.afterEndMarginPages.length).toEqual(1);
+    expect(result.current.afterEndMarginPages).toEqual([expect.objectContaining({ index: 4, number: 5 })]);
+
+    act(() => result.current.gotoPageIndex(4));
+    expect(result.current.beforeStartMarginPages.length).toEqual(4);
+    expect(result.current.beforeStartMarginPages).toEqual([
+      expect.objectContaining({ index: 0, number: 1 }),
+      expect.objectContaining({ index: 1, number: 2 }),
+      expect.objectContaining({ index: 2, number: 3 }),
+      expect.objectContaining({ index: 3, number: 4 }),
+    ]);
+    expect(result.current.afterEndMarginPages).toEqual([]);
   });
+
+  it('can updates pages before margin', () => {});
+  it('can updates pages before margin with a callback', () => {});
+  it('can updates pages after margin', () => {});
+  it('can updates pages after margin with a callback', () => {});
 });
