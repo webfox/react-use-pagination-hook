@@ -20,7 +20,7 @@ const pageCount = (itemCount: number = initialState.itemCount, itemsPerPage: num
 
 describe('usePagination navigation tests', () => {
 
-  it('can change pages by index', () => {
+  it('can navigate pages by index', () => {
     const { result } = renderHook(() => usePagination(initialState));
 
     act(() => result.current.gotoPageIndex(3));
@@ -30,7 +30,7 @@ describe('usePagination navigation tests', () => {
     });
   });
 
-  it('can change pages by index with a callback', () => {
+  it('can navigate pages by index with a callback', () => {
     const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
 
     act(() => result.current.gotoPageIndex((state) => state.currentPageIndex + 2));
@@ -40,7 +40,7 @@ describe('usePagination navigation tests', () => {
     });
   });
 
-  it('can change pages by number', () => {
+  it('can navigate pages by number', () => {
     const { result } = renderHook(() => usePagination(initialState));
 
     act(() => result.current.gotoPageNumber(3));
@@ -50,7 +50,7 @@ describe('usePagination navigation tests', () => {
     });
   });
 
-  it('can change pages by number with a callback', () => {
+  it('can navigate pages by number with a callback', () => {
     const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));
 
     act(() => result.current.gotoPageNumber((state) => state.currentPageNumber + 2));
@@ -60,7 +60,7 @@ describe('usePagination navigation tests', () => {
     });
   });
 
-  it('can go to the first and last pages', () => {
+  it('can navigate to the first and last pages', () => {
     const { itemsPerPage, itemCount } = initialState;
 
     const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: initialState50PageIndex }));

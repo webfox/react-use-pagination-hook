@@ -26,7 +26,7 @@ describe('usePagination calculation tests', () => {
     expect(result.current.pageCount).toEqual(pageCount());
   });
 
-  it('clamps page navigation', () => {
+  it('can clamp page navigation', () => {
     const { result } = renderHook(() => usePagination({ ...initialState, initialPageIndex: pageCount() + 10 }));
 
     expect(result.current).toMatchObject({
@@ -74,7 +74,7 @@ describe('usePagination calculation tests', () => {
     });
   });
 
-  it('knows if there are future and past pages', () => {
+  it('can calculate if there are past and future pages', () => {
     const { result } = renderHook(() => usePagination(initialState));
 
     expect(result.current).toMatchObject({
@@ -95,7 +95,7 @@ describe('usePagination calculation tests', () => {
     });
   });
 
-  it('tracks old page positions', () => {
+  it('can track old page positions', () => {
     const { result } = renderHook(() => usePagination(initialState));
 
     expect(result.current.oldPageIndex).toBeUndefined();
