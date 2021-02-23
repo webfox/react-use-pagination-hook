@@ -252,4 +252,88 @@ describe('usePagination calculation tests', () => {
     expect(result.current.afterEndMarginPages).toEqual([]);
   });
 
+  it('can calculate after start margin pages without before margin pages', () => {
+    const { result } = renderHook(() => usePagination({
+      ...initialState,
+      pagesBeforeMargin: 0,
+      pagesAfterMargin: 4,
+      initialPageIndex: 15,
+    }));
+
+    expect(result.current.beforeCurrentPagePages).toEqual([
+      expect.objectContaining({ index: 11, number: 12 }),
+      expect.objectContaining({ index: 12, number: 13 }),
+      expect.objectContaining({ index: 13, number: 14 }),
+      expect.objectContaining({ index: 14, number: 15 }),
+    ]);
+  });
+
+  it('can calculate before end margin pages without before margin pages', () => {
+    const { result } = renderHook(() => usePagination({
+      ...initialState,
+      pagesBeforeMargin: 0,
+      pagesAfterMargin: 4,
+      initialPageIndex: 15,
+    }));
+
+    expect(result.current.afterCurrentPagePages).toEqual([
+      expect.objectContaining({ index: 16, number: 17 }),
+      expect.objectContaining({ index: 17, number: 18 }),
+      expect.objectContaining({ index: 18, number: 19 }),
+      expect.objectContaining({ index: 19, number: 20 }),
+    ]);
+  });
+
+  it('can calculate after start margin pages with before margin pages', () => {
+    const { result } = renderHook(() => usePagination({
+      ...initialState,
+      pagesBeforeMargin: 3,
+      pagesAfterMargin: 4,
+      initialPageIndex: 15,
+    }));
+
+    expect(result.current.beforeCurrentPagePages).toEqual([
+      expect.objectContaining({ index: 11, number: 12 }),
+      expect.objectContaining({ index: 12, number: 13 }),
+      expect.objectContaining({ index: 13, number: 14 }),
+      expect.objectContaining({ index: 14, number: 15 }),
+    ]);
+
+    expect(result.current.beforeStartMarginPages).toEqual([
+      expect.objectContaining({ index: 0, number: 1 }),
+      expect.objectContaining({ index: 1, number: 2 }),
+      expect.objectContaining({ index: 2, number: 3 }),
+    ]);
+  });
+
+  it('can calculate before end margin pages with before margin pages', () => {
+    const { result } = renderHook(() => usePagination({
+      ...initialState,
+      pagesBeforeMargin: 3,
+      pagesAfterMargin: 4,
+      initialPageIndex: 15,
+    }));
+
+    expect(result.current.afterCurrentPagePages).toEqual([
+      expect.objectContaining({ index: 16, number: 17 }),
+      expect.objectContaining({ index: 17, number: 18 }),
+      expect.objectContaining({ index: 18, number: 19 }),
+      expect.objectContaining({ index: 19, number: 20 }),
+    ]);
+
+    expect(result.current.beforeStartMarginPages).toEqual([
+      expect.objectContaining({ index: pageCount() - 3, number: pageCount() - 2 }),
+      expect.objectContaining({ index: pageCount() - 2, number: pageCount() - 1 }),
+      expect.objectContaining({ index: pageCount() - 1, number: pageCount() }),
+    ]);
+  });
+
+  // can calculate before start and after start margin pages when room is limited
+  // can calculate before end and after end margin pages when room is limited
+
+  // after start margin pages should be empty when active page index + 1 === beforeMarginPages
+  // before end margin pages should be empty when active page index + 1 === pageCount - beforeMarginPages
+  // after start margin pages should be length 2 when active page index + 1 === beforeMarginPages + 3
+  // before end margin pages should be length 2 when active page index + 1 === pageCount - (beforeMarginPages + 2)
+
 });

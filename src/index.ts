@@ -18,7 +18,7 @@ export interface State {
   pageCount: number;
   /** The maximum number of items each page should contain */
   itemsPerPage: number;
-  /** The number of pages fixed at the start and end (e.g. if 10 pages 2 would display [<][1][2]...[65]...[9][10][>] */
+  /** The ideal number of pages fixed at the start and end (e.g. if 10 pages 2 would display [<][1][2]...[5]...[9][10][>] */
   pagesBeforeMargin: number;
   /** The ideal number of pages to display on each side of the current page */
   pagesAfterMargin: number;
